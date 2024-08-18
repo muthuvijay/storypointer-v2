@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "StoryBot",
+  "description": "StoryBot is a simple extension that allows users to point stories collaboratively",
+  "version": "1.0.0",
+  "action": {
+    "default_popup": "src/components/popup/popup.html",
+    "default_icon": {
+      "16": "images/icon16.png",
+      "48": "images/icon48.png",
+      "128": "images/icon128.png"
+    },
+    "default_title": "Ready to point stories?"
+  },
+  "background": {
+    "service_worker": "src/worker/background.js",
+    "type": "module"
+  },
+  "host_permissions": [
+    "*://*/*",
+    "http://localhost:3000/*",
+    "https://node-socket-storypointer-bd1078ee47cf.herokuapp.com/*"
+  ],
+  "content_scripts": [
+    {
+      "js": ["src/components/content/contentRoot.jsx"],
+      "matches": ["*://*/*"]
+    }
+  ],
+  "permissions": ["activeTab", "scripting", "contextMenus", "identity"]
+}
