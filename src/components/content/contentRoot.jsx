@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import MainPanel from "./mainPanel";
+import MainPanel from "./MainPanel";
 
 const rootElement = document.createElement("div");
 rootElement.id = "react-root";

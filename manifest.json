@@ -23,9 +23,10 @@
   ],
   "content_scripts": [
     {
-      "js": ["src/components/content/contentRoot.jsx"],
+      "js": ["src/components/content/ContentRoot.jsx"],
       "matches": ["*://*/*"]
     }
   ],
-  "permissions": ["activeTab", "scripting", "contextMenus", "identity"]
+  "permissions": ["activeTab", "scripting", "contextMenus", "identity", "idle", "notifications"]
+  
 }

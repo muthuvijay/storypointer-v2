@@ -41,6 +41,28 @@
           padding: 10px;
           box-sizing: border-box;
           background-color: #fff;
+          border-radius: 5px;
+          border: 1px solid #646cff;
+          color: #333;
+          font-size: 1em;
+
+          &:hover, &:focus, &:focus-visible {
+            border: 1px solid #646cff;
+          }
+        }
+      }
+
+      .__buttons {
+        display: flex;
+        justify-content: space-evenly;
+        padding: 10px;
+        button {
+          padding: 10px;
+          background: #646cff;
+          color: #fff;
+          border: none;
+          cursor: pointer;
+          min-width: 100px;
         }
       }
     }

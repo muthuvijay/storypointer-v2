@@ -1,139 +1,94 @@
-// Copyright 2022 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     https://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+import { io } from 'socket.io-client';
 
-/* chrome.runtime.onInstalled.addListener(() => {
-  chrome.action.setBadgeText({
-    text: "OFF",
+const socket = io(import.meta.env.SOCKET_SERVER_URL, { transports: ['websocket'] }); // Change the URL if your server is hosted elsewhere
+let currentTab = null;
+let notificationId = null;
+
+async function notifyUser(title, message) {
+  notificationId = await chrome.notifications.create({
+    type: 'basic',
+    iconUrl: chrome.runtime.getURL('./images/icon16.png'), // Add your extension's icon here
+    title: title,
+    message: message,
   });
-}); */
-// Include Socket.IO client library
-// importScripts("vendors/socket.io.min.js");
-// import io from "./vendors/socket.io.min.js";
-import { io } from "socket.io-client";
-
-const socket = io("http://localhost:3000", { transports: ["websocket"] }); // Change the URL if your server is hosted elsewhere
-/* const socket = io(
-  "https://node-socket-storypointer-bd1078ee47cf.herokuapp.com/",
-  { transports: ["websocket"] }
-);
- */
-console.log(socket);
-// Event listener for connection success
-
-function connect() {
-  console.log("Attempting to connect to socket server");
-  socket.on("connect", () => {
-    console.log("Connected to socket server");
-
-    // Example: Send a message to the server
-    socket.emit("message", "Hello from client");
-  });
-
-  // Event listener for disconnection
-  socket.on("disconnect", () => {
-    console.log("Disconnected from socket server");
-  });
-
-  // Example: Event listener for receiving messages from the server
-  socket.on("message", (data) => {
-    console.log("Message received from server:", data);
-  });
-
-  socket.on("error", (error) => {
-    console.log("Error", error);
-  });
-  socket.on("connect_error", function (error) {
-    console.error("Socket.IO connection error:", error);
-  });
-
-  socket.on("connect_timeout", function (timeout) {
-    console.error("Socket.IO connection timeout:", timeout);
-  });
+  console.log('Notification ID:', notificationId);
 }
+
+// Handle notification click event
+chrome.notifications.onClicked.addListener(function (currentNotificationId) {
+  if (notificationId === currentNotificationId) {
+    // Define the URL of the tab you want to open
+    // const targetUrl = 'https://example.com';
+
+    // Search for an existing tab with the target URL
+    chrome.tabs.query({}, function (tabs) {
+      let tabFound = false;
+
+      for (let tab of tabs) {
+        if (tab.id === currentTab.id) {
+          // If tab is found, bring it to focus
+          chrome.tabs.update(tab.id, { active: true });
+          chrome.windows.update(tab.windowId, { focused: true });
+          tabFound = true;
+          break;
+        }
+      }
+    });
+  }
+});
+
 function sendMessageToContentScript(message, callback) {
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-    chrome.tabs.sendMessage(tabs[0].id, message, callback);
+    if (tabs.length > 0 && tabs[0].id === currentTab.id) {
+      console.log('Tabs', tabs[0].id, currentTab?.id);
+      chrome.tabs.sendMessage(tabs[0].id, message, callback);
+    } else {
+      console.log('No active tabs found');
+      notifyUser('Story Pointer', 'You have a new story to point.');
+    }
   });
-  /* chrome.tabs.query({}, function (tabs) {
-    // Loop through each tab
-    tabs.forEach(function (tab) {
-      // Send a message to the content script of each tab
-      chrome.tabs.sendMessage(tab.id, message);
-    });
-  }); */
 }
 
-function broadCastToAllConnectedTabs(message) {
+/* function broadCastToAllConnectedTabs(message) {
   chrome.tabs.query({}, function (tabs) {
     // Loop through each tab
     tabs.forEach(function (tab) {
-      console.log("TAB =>", tab);
+      // console.log("TAB =>", tab);
       // Send a message to the content script of each tab
       chrome.tabs.sendMessage(tab.id, message);
     });
   });
-}
+} */
 
-let isScriptInjected = false;
-console.log("Background script");
-
-// When the user clicks on the extension action
-/* chrome.action.onClicked.addListener((tab) => {
-  console.log("Cliked on SW", isScriptInjected);
-
-  if (!isScriptInjected) {
-    /* chrome.scripting.executeScript({
-      files: ["./src/content.js"],
-      target: { tabId: tab.id },
-    }); *
-    isScriptInjected = true;
-    connect();
-  }
+function showContextMenu() {
   // Create a context menu item
   chrome.contextMenus.create({
-    id: "pointerContextMenu",
-    title: "Storypoint this text",
-    contexts: ["selection"],
+    id: 'pointerContextMenu',
+    title: 'Storypoint this text',
+    contexts: ['selection'],
   });
-  sendMessageToContentScript({
-    message: "SHOW_PANEL",
-  });
-}); */
+}
 
-chrome.runtime.onInstalled.addListener(async function () {
-  console.log("Installed");
-
-  if (!isScriptInjected) {
-    isScriptInjected = true;
-    // connect();
-    // Create a context menu item
-    chrome.contextMenus.create({
-      id: "pointerContextMenu",
-      title: "Storypoint this text",
-      contexts: ["selection"],
-    });
+//reconnect socket after idle time
+chrome.idle.onStateChanged.addListener(function (state) {
+  if (state === 'active') {
+    console.log('Active state');
+    socket.connect();
+    // createOrJoinChannelCallback();
+  } else {
+    console.log('Idle state');
+    socket.disconnect();
   }
 });
 
 // Add listener for context menu clicks
 chrome.contextMenus.onClicked.addListener(function (info, tab) {
-  if (info.menuItemId === "pointerContextMenu") {
+  if (info.menuItemId === 'pointerContextMenu') {
     // Perform the action when context menu item is clicked
-    console.log("Context menu action clicked", info.selectionText);
+    console.log('Context menu action clicked', info.selectionText);
     // Send a message from background script to another script
     sendMessageToContentScript({
-      message: "SELECT_QUESTION",
+      message: 'SELECT_QUESTION',
       question: info.selectionText,
     });
   }
@@ -141,65 +96,125 @@ chrome.contextMenus.onClicked.addListener(function (info, tab) {
 
 // Listen for messages from the content script
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-  console.log("Message from content script: ", request, socket.connected);
+  console.log('Message from content script: ', request, socket.connected);
 
-  if (request.message === "JOIN_CHANNEL") {
+  if (request.message === 'CREATE_CHANNEL') {
+    console.log('Create Channel', request);
+
+    const createCallbackWrapper = (namespace, channel) => {
+      console.log('Namespace', namespace, channel);
+      sendResponse({ namespace, channel });
+      createOrJoinChannelCallback(namespace, channel, request.name);
+    };
+
+    socket.emit(
+      'CREATE_CHANNEL',
+      {
+        channel: request.channel || null,
+        name: request.name,
+        domain: request.domain,
+      },
+      createCallbackWrapper,
+    );
+
+    return true;
+  }
+
+  if (request.message === 'JOIN_CHANNEL') {
+    console.log('Join Channel', request);
+
+    const createCallbackWrapper = (namespace, channel) => {
+      console.log('Namespace', namespace, channel);
+      sendResponse({ namespace, channel });
+      createOrJoinChannelCallback(namespace, channel, request.name);
+    };
+
+    socket.emit(
+      'JOIN_CHANNEL',
+      {
+        channel: request.channel,
+        name: request.name,
+        domain: request.domain,
+      },
+      createCallbackWrapper,
+    );
+
+    return true;
+  }
+
+  if (request.message === 'GET_LAST_QUERY') {
+    socket.emit('GET_LAST_QUERY', {
+      channel: request.channel,
+      domain: request.domain,
+    });
+  }
+
+  /* if (request.message === "JOIN_CHANNEL") {
     // socket.join(request.channel);
 
+    
     socket.emit("JOIN_CHANNEL", {
       channel: request.channel,
       name: request.name,
+      domain: request.domain,
     });
     sendMessageToContentScript({
       message: "ADD_SESSION_DATA",
       channel: request.channel,
       name: request.name,
     });
-  }
+  } */
 
-  if (request.message === "LEAVE_CHANNEL") {
-    socket.emit("LEAVE_CHANNEL", {
+  if (request.message === 'LEAVE_CHANNEL') {
+    socket.emit('LEAVE_CHANNEL', {
       channel: request.channel,
       name: request.name,
+      domain: request.domain,
     });
     sendMessageToContentScript({
-      message: "DELETE_SESSION_DATA",
+      message: 'DELETE_SESSION_DATA',
     });
   }
 
-  if (request.message === "QUESTION_CONFIRMED") {
-    console.log("Question confirmed", request.question, request.channel);
-    socket.emit("SELECTED_QUESTIONS", {
+  if (request.message === 'QUESTION_CONFIRMED') {
+    console.log('Question confirmed', request.question, request.channel);
+    socket.emit('SELECTED_QUESTIONS', {
       channel: request.channel,
       question: request.question,
+      domain: request.domain,
     });
   }
 
-  if (request.message === "VOTED_FOR_QUESTION") {
-    console.log("Question Voted by user", request.question, request.channel);
-    socket.emit("VOTED_FOR_QUESTION", {
+  if (request.message === 'VOTED_FOR_QUESTION') {
+    console.log('Question Voted by user', request.question, request.channel);
+    socket.emit('VOTED_FOR_QUESTION', {
       channel: request.channel,
       question: request.question,
       user: request.user,
       value: request.value,
+      domain: request.domain,
     });
   }
 
   // Send a response back to the content script
   // sendResponse({response: "Message received by the background script!"});
 
-  if (request.message === "FETCH_SESSION_DATA") {
+  if (request.message === 'FETCH_SESSION_DATA') {
+    console.log('Fetching session data', request);
+    currentTab = request.tab;
     sendMessageToContentScript(
       {
-        message: "GET_SESSION_DATA",
+        message: 'GET_SESSION_DATA',
       },
 
       function (response) {
-        console.log("Session data =>", response);
+        console.log('Session data =>', response);
         if (response && response.data) {
+          const ns = `/${response.data.domain}-${response.data.channel}`;
+          createOrJoinChannelCallback(ns, response.data.channel, response.data.user);
           sendResponse(response);
         }
-      }
+      },
     );
     return true;
   }
@@ -210,15 +225,15 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
   } */
 });
 
-socket.on("PARTICIPANTS", (data) => {
+/* socket.on("PARTICIPANTS", (data) => {
   console.log("particpants received in background", data);
   broadCastToAllConnectedTabs({
     message: "ADD_PARTICIPANTS",
     participants: data,
   });
-});
+}); */
 
-socket.on("VOTE_FOR_QUESTION", (question) => {
+/* socket.on("VOTE_FOR_QUESTION", (question) => {
   console.log("Questions", question);
 
   broadCastToAllConnectedTabs({
@@ -235,7 +250,89 @@ socket.on("REVEAL_VOTES", ({ question, votes }) => {
     votes,
   });
 });
-chrome.identity.getProfileUserInfo((userInfo) => {
-  console.log("User Info:", userInfo);
-  // You can send the userInfo to your popup or content script
+ */
+
+// Create socket channel using namespace
+
+const createOrJoinChannelCallback = (namespace, channel, name) => {
+  console.log(`Connecting to namespace: ${namespace}`);
+
+  // Connect to the dynamic namespace
+  const nsSocket = io(`http://localhost:3000${namespace}`);
+
+  nsSocket.on('connect', () => {
+    console.log('Connected to namespace:', namespace);
+    console.log('Channel', channel);
+    nsSocket.emit('CONNECT', channel);
+    showContextMenu();
+  });
+
+  // Listen for the 'welcome' message from the new namespace
+  nsSocket.on('welcome', (message) => {
+    console.log('Welcome message from namespace:', message);
+  });
+
+  nsSocket.on('joined_room', (message) => {
+    console.log(message);
+  });
+
+  nsSocket.on('PARTICIPANTS', (data) => {
+    console.log('particpants received in background', data);
+    sendMessageToContentScript({
+      message: 'ADD_PARTICIPANTS',
+      participants: data,
+    });
+  });
+
+  nsSocket.on('PARTICIPANTS_REMAIN', (participants) => {
+    console.log('Participants remaining', participants);
+    sendMessageToContentScript({
+      message: 'PARTICIPANTS_REMAIN',
+      participants,
+    });
+  });
+
+  nsSocket.on('VOTE_FOR_QUESTION', (question) => {
+    console.log('Questions', question);
+
+    sendMessageToContentScript({
+      message: 'VOTE_QUESTION',
+      question,
+    });
+  });
+
+  nsSocket.on('REVEAL_VOTES', ({ question, votes }) => {
+    console.log('Questions', question, votes);
+    sendMessageToContentScript({
+      message: 'REVEAL_VOTES',
+      question,
+      votes,
+    });
+  });
+
+  nsSocket.on('CHANNEL_NOT_FOUND', ({ channel, namespace }) => {
+    console.log('Channel not found', channel, namespace);
+    /* sendMessageToContentScript({
+      message: "CHANNEL_NOT_FOUND",
+      channel,
+      namespace,
+    }); */
+  });
+
+  sendMessageToContentScript({
+    message: 'ADD_SESSION_DATA',
+    channel,
+    name,
+  });
+};
+
+// socket.on("CREATED_CHANNEL", createOrJoinChannelCallback);
+// socket.on("JOINED_CHANNEL", createOrJoinChannelCallback);
+
+socket.on('CHANNEL_NOT_FOUND', (response) => {
+  console.log('Channel not found', response);
+  // clear the session data
+  sendMessageToContentScript({
+    message: 'DELETE_SESSION_DATA',
+  });
 });
