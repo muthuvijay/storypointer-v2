@@ -12,6 +12,7 @@
 
   section {
     padding-bottom: 5px;
+    text-align: left;
   }
   input {
     width: 100%;
@@ -33,6 +34,10 @@
     display: flex;
     justify-content: right;
     margin-top: 10px;
+  }
+
+  small.error {
+    color: red;
   }
 
   .connected {

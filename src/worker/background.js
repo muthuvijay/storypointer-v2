@@ -1,6 +1,7 @@
 import { io } from 'socket.io-client';
 
-const socket = io(import.meta.env.SOCKET_SERVER_URL, { transports: ['websocket'] }); // Change the URL if your server is hosted elsewhere
+const socket = io(import.meta.env.VITE_SOCKET_SERVER_URL, { transports: ['websocket'] }); // Change the URL if your server is hosted elsewhere
+
 let currentTab = null;
 let notificationId = null;
 
@@ -201,7 +202,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 
   if (request.message === 'FETCH_SESSION_DATA') {
     console.log('Fetching session data', request);
-    currentTab = request.tab;
+    currentTab = request.tab; // assign request tab to currentTab
     sendMessageToContentScript(
       {
         message: 'GET_SESSION_DATA',
@@ -258,8 +259,7 @@ const createOrJoinChannelCallback = (namespace, channel, name) => {
   console.log(`Connecting to namespace: ${namespace}`);
 
   // Connect to the dynamic namespace
-  const nsSocket = io(`http://localhost:3000${namespace}`);
-
+  const nsSocket = io(import.meta.env.VITE_SOCKET_SERVER_URL + namespace);
   nsSocket.on('connect', () => {
     console.log('Connected to namespace:', namespace);
     console.log('Channel', channel);

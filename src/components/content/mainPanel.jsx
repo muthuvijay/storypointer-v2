@@ -175,6 +175,13 @@ export default function MainPanel() {
       }
 
       if (request.message === 'GET_SESSION_DATA') {
+        const user = sessionStorage.getItem(STORAGE_KEY.USER);
+        const channel = sessionStorage.getItem(STORAGE_KEY.CHANNEL);
+        if (!user || !channel) {
+          console.log('No session data found');
+          return;
+        }
+
         // preload any participants data if present
         const participantsFromStorage = sessionStorage.getItem(STORAGE_KEY.PARTICIPANTS);
 

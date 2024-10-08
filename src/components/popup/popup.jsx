@@ -11,6 +11,8 @@ function PopupRoot() {
   const [isCreateChannel, setIsCreateChannel] = useState(true);
   const [showDropdown, setShowDropdown] = useState(false);
   const [currentTab, setCurrentTab] = useState(null);
+  const [isNameError, setIsNameError] = useState(false);
+  const [isChannelError, setIsChannelError] = useState(false);
 
   console.log(isConnected, userName, channelName);
 
@@ -24,6 +26,16 @@ function PopupRoot() {
   }, []);
 
   const onButtonClick = () => {
+    if (!userName) {
+      setIsNameError(true);
+      return;
+    }
+
+    if (!isCreateChannel && !channelName) {
+      setIsChannelError(true);
+      return;
+    }
+
     const data = {
       name: userName,
       domain,
@@ -121,6 +133,7 @@ function PopupRoot() {
                   placeholder="Enter your name"
                   onChange={(name) => setUserName(name.target.value)}
                 />
+                {isNameError && <small className="error">Please enter your name</small>}
               </section>
               {!isCreateChannel && (
                 <section className="channel">
@@ -130,6 +143,9 @@ function PopupRoot() {
                     placeholder="Channel name"
                     onChange={(channel) => setChannelName(channel.target.value)}
                   />
+                  {isChannelError && (
+                    <small className="error">Please enter channel name</small>
+                  )}
                 </section>
               )}
 
